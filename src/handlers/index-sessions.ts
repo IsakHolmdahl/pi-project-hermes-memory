@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { DatabaseManager } from '../store/db.js';
 import { indexAllSessions, getSessionStats } from '../store/session-indexer.js';
+import { cwdToSessionDir } from '../store/session-parser.js';
 import { AGENT_ROOT } from '../paths.js';
 
 const SESSIONS_DIR = path.join(AGENT_ROOT, 'sessions');
@@ -19,26 +20,24 @@ export function registerIndexSessionsCommand(pi: ExtensionAPI): void {
       ctx.ui.notify('🔍 Scanning session directories...', 'info');
 
       try {
-        // Count sessions first for progress display
+        // Scope to the current project directory only
+        const projectDir = cwdToSessionDir(ctx.cwd);
+        const projectSessionsDir = path.join(SESSIONS_DIR, projectDir);
+
+        // Count session files for this project
         let totalFiles = 0;
-        let projectDirs: string[] = [];
-        if (fs.existsSync(SESSIONS_DIR)) {
-          projectDirs = fs.readdirSync(SESSIONS_DIR)
-            .filter(d => fs.statSync(path.join(SESSIONS_DIR, d)).isDirectory());
-          for (const dir of projectDirs) {
-            const files = fs.readdirSync(path.join(SESSIONS_DIR, dir))
-              .filter(f => f.endsWith('.jsonl'));
-            totalFiles += files.length;
-          }
+        if (fs.existsSync(projectSessionsDir)) {
+          totalFiles = fs.readdirSync(projectSessionsDir)
+            .filter(f => f.endsWith('.jsonl')).length;
         }
 
-        ctx.ui.notify(`📁 Found ${totalFiles} session files across ${projectDirs.length} projects\n⏳ Indexing...`, 'info');
+        ctx.ui.notify(`📁 Found ${totalFiles} session file${totalFiles === 1 ? '' : 's'} for this project\n⏳ Indexing...`, 'info');
 
         const memoryDir = path.join(AGENT_ROOT, 'pi-hermes-memory');
         const dbManager = new DatabaseManager(memoryDir);
 
         try {
-          const result = indexAllSessions(dbManager, SESSIONS_DIR);
+          const result = indexAllSessions(dbManager, SESSIONS_DIR, projectDir);
           const stats = getSessionStats(dbManager);
 
           let output = `\n✅ Session indexing complete!\n\n`;
@@ -71,7 +70,7 @@ export function registerIndexSessionsCommand(pi: ExtensionAPI): void {
             }
           }
 
-          output += `\n💡 Use the session_search tool to search across indexed sessions.`;
+          output += `\n💡 Use the session_search tool to search across sessions in this project.`;
 
           ctx.ui.notify(output, 'info');
         } finally {

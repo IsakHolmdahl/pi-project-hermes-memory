@@ -209,6 +209,19 @@ export function getSessionFiles(sessionsDir: string, projectDir?: string): strin
 }
 
 /**
+ * Encode a CWD path to the session directory name that Pi uses on disk.
+ * "/Users/foo/my-project" → "--Users-foo-my-project--"
+ *
+ * Pi stores sessions under ~/.pi/agent/sessions/<encoded-cwd>/,
+ * where each '/' in the path is replaced by '-' and the whole string
+ * is wrapped with a leading and trailing '-'.
+ */
+export function cwdToSessionDir(cwd: string): string {
+  const encoded = cwd.replace(/^\//, '').replace(/\//g, '-');
+  return `--${encoded}--`;
+}
+
+/**
  * Decode a project directory name to a human-readable project name.
  * "--Users-chandrateja-Documents-pi-hermes-memory--" → "pi-hermes-memory"
  */

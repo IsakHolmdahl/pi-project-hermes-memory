@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { parseSessionFile, getSessionFiles, decodeProjectDir } from '../../src/store/session-parser.js';
+import { parseSessionFile, getSessionFiles, decodeProjectDir, cwdToSessionDir } from '../../src/store/session-parser.js';
 
 describe('session-parser', () => {
   let tmpDir: string;
@@ -276,6 +276,32 @@ describe('session-parser', () => {
 
     it('should handle simple directory names', () => {
       assert.strictEqual(decodeProjectDir('my-project'), 'project');
+    });
+  });
+
+  describe('cwdToSessionDir', () => {
+    it('should encode a Unix CWD to the Pi session directory name', () => {
+      assert.strictEqual(
+        cwdToSessionDir('/Users/isakholmdahl/Git/pi-project-hermes-memory'),
+        '--Users-isakholmdahl-Git-pi-project-hermes-memory--'
+      );
+    });
+
+    it('should encode a short path', () => {
+      assert.strictEqual(cwdToSessionDir('/Users/foo'), '--Users-foo--');
+    });
+
+    it('should produce a dir name that ends with the last path component', () => {
+      const cwd = '/Users/alice/projects/my-app';
+      const dirName = cwdToSessionDir(cwd);
+      assert.ok(dirName.endsWith('my-app--'), `expected to end with 'my-app--', got '${dirName}'`);
+      assert.ok(dirName.startsWith('--'), `expected to start with '--', got '${dirName}'`);
+    });
+
+    it('should strip the leading slash before encoding', () => {
+      // No triple dash at the start
+      const dirName = cwdToSessionDir('/home/user/project');
+      assert.strictEqual(dirName, '--home-user-project--');
     });
   });
 });
