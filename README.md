@@ -2,7 +2,7 @@
 
 ![Pi Hermes Memory](docs/images/pi_memory.png)
 
-# 🧠 Pi Hermes Memory
+# 🧠 Pi Hermes Memory - Now project local!
 
 **Persistent memory + session search + secret scanning for Pi**
 
@@ -11,6 +11,12 @@
 </div>
 
 Your Pi agent normally forgets everything when you close a session. **This extension fixes that.**
+
+**NOTE:** This is a fork of the original Hermes memory package for Pi. This fork aims to move the memory bank from the global Pi 
+configuration to only local projects. That enables you to have different memories for different projects. The original package
+also has that functionality, but still stored the project specific memories in the global config. This made the separation
+for security concerns impossible. With this fork you will have a much easier time separating the memories, which
+limits security-sensitive memories from being read by models for other projects that aren't approved for your project.
 
 - 🔍 **Search every conversation** — "what did we discuss about auth?" finds it instantly
 - 🧠 **Persistent memory** — facts, preferences, corrections survive across sessions
@@ -25,7 +31,7 @@ Your Pi agent normally forgets everything when you close a session. **This exten
 
 ```bash
 # Install
-pi install npm:pi-hermes-memory
+pi install git:pi-hermes-memory
 
 # Index your past sessions (one-time)
 /memory-index-sessions
@@ -36,19 +42,6 @@ pi install npm:pi-hermes-memory
 # Learn how to use it
 /learn-memory-tool
 ```
-
-## Upgrade Notes (v0.7.10)
-
-If you’re upgrading from older versions, startup now auto-migrates extension data safely:
-
-- legacy extension root: `~/.pi/agent/memory` → `~/.pi/agent/pi-hermes-memory`
-- legacy flat skills: `~/.pi/agent/pi-hermes-memory/skills/*.md` → `~/.pi/agent/pi-hermes-memory/skills/<slug>/SKILL.md`
-
-This resolves Pi skill index conflicts like:
-
-- `name "..." does not match parent directory "skills"`
-
-No manual action is needed. Launch Pi once after upgrade to let migration/normalization run.
 
 ## Features
 
