@@ -14,7 +14,6 @@ import type { ConsolidationResult, MemoryConfig } from "../types.js";
 import { execChildPrompt } from "./pi-child-process.js";
 
 type MemoryTarget = "memory" | "user" | "failure";
-type ToolMemoryTarget = MemoryTarget | "project";
 
 function entriesForTarget(store: MemoryStore, target: MemoryTarget): string[] {
   if (target === "user") return store.getUserEntries();
@@ -22,8 +21,7 @@ function entriesForTarget(store: MemoryStore, target: MemoryTarget): string[] {
   return store.getMemoryEntries();
 }
 
-function labelForTarget(target: MemoryTarget, toolTarget: ToolMemoryTarget): string {
-  if (toolTarget === "project") return "Project Memory";
+function labelForTarget(target: MemoryTarget): string {
   if (target === "user") return "User Profile";
   if (target === "failure") return "Failure Memory";
   return "Memory";
@@ -49,7 +47,6 @@ export async function triggerConsolidation(
   target: MemoryTarget,
   signal?: AbortSignal,
   timeoutMs: number = 60000,
-  toolTarget: ToolMemoryTarget = target,
   llmConfig: Pick<MemoryConfig, "llmModelOverride" | "llmThinkingOverride"> = {},
 ): Promise<ConsolidationResult> {
   const entries = entriesForTarget(store, target);
@@ -58,10 +55,10 @@ export async function triggerConsolidation(
   const prompt = [
     CONSOLIDATION_PROMPT,
     "",
-    `--- Current ${labelForTarget(target, toolTarget)} Entries ---`,
+    `--- Current ${labelForTarget(target)} Entries ---`,
     currentContent || "(empty)",
     "",
-    `Use the memory tool to consolidate. Target: '${toolTarget}'`,
+    `Use the memory tool to consolidate. Target: '${target}'`,
   ].join("\n");
 
   try {
@@ -93,8 +90,6 @@ export function registerConsolidateCommand(
   pi: ExtensionAPI,
   store: MemoryStore,
   timeoutMs: number = 60000,
-  projectStore: MemoryStore | null = null,
-  projectName?: string | null,
   llmConfig: Pick<MemoryConfig, "llmModelOverride" | "llmThinkingOverride"> = {},
 ): void {
   pi.registerCommand("memory-consolidate", {
@@ -104,23 +99,12 @@ export function registerConsolidateCommand(
       const results: string[] = [];
       const targets: Array<{
         label: string;
-        store: MemoryStore;
         target: MemoryTarget;
-        toolTarget: ToolMemoryTarget;
       }> = [
-        { label: "memory", store, target: "memory", toolTarget: "memory" },
-        { label: "user", store, target: "user", toolTarget: "user" },
-        { label: "failure", store, target: "failure", toolTarget: "failure" },
+        { label: "memory", target: "memory" },
+        { label: "user", target: "user" },
+        { label: "failure", target: "failure" },
       ];
-
-      if (projectStore) {
-        targets.push({
-          label: projectName ? `project:${projectName}` : "project",
-          store: projectStore,
-          target: "memory",
-          toolTarget: "project",
-        });
-      }
 
       try {
         ctx.ui.notify(
@@ -133,7 +117,7 @@ export function registerConsolidateCommand(
       }
 
       for (const item of targets) {
-        const entries = entriesForTarget(item.store, item.target);
+        const entries = entriesForTarget(store, item.target);
 
         if (entries.length === 0) {
           results.push(`${item.label}: (empty, nothing to consolidate)`);
@@ -151,16 +135,15 @@ export function registerConsolidateCommand(
 
         const result = await triggerConsolidation(
           pi,
-          item.store,
+          store,
           item.target,
           ctx.signal,
           manualTimeoutMs,
-          item.toolTarget,
           llmConfig,
         );
 
         if (result.consolidated) {
-          await item.store.loadFromDisk();
+          await store.loadFromDisk();
           results.push(`${item.label}: ✅ consolidated`);
         } else {
           results.push(`${item.label}: ❌ ${result.error}`);

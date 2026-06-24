@@ -134,16 +134,6 @@ describe("triggerConsolidation", () => {
     assert.ok(prompt.includes("Target: 'failure'"), "prompt should tell the child agent to use target='failure'");
   });
 
-  it("can consolidate project memory using the project tool target", async () => {
-    const pi = createMockPi();
-    await triggerConsolidation(pi, mockStore, "memory", undefined, 60000, "project");
-
-    const prompt = childPrompt(execCalls[0]);
-    assert.ok(prompt.includes("old entry 1"), "prompt should include project memory entries");
-    assert.ok(prompt.includes("Project Memory"), "prompt should label project memory");
-    assert.ok(prompt.includes("Target: 'project'"), "prompt should tell the child agent to use target='project'");
-  });
-
   it("retries once without overrides when the override subprocess fails for model resolution reasons", async () => {
     const pi = {
       on: () => {},
@@ -164,7 +154,6 @@ describe("triggerConsolidation", () => {
       "memory",
       undefined,
       60000,
-      "memory",
       { llmModelOverride: "openrouter/deepseek/deepseek-v4-flash" },
     );
 
@@ -202,7 +191,6 @@ describe("triggerConsolidation", () => {
       "memory",
       undefined,
       60000,
-      "memory",
       { llmModelOverride: "openrouter/deepseek/deepseek-v4-flash" },
     );
 
@@ -230,10 +218,9 @@ describe("registerConsolidateCommand", () => {
     execCalls = [];
   });
 
-  it("includes project memory when a project store is available", async () => {
+  it("consolidates memory, user, and failure targets", async () => {
     let handler: any;
     const notifications: string[] = [];
-    let projectReloaded = false;
 
     const pi = {
       on: () => {},
@@ -247,33 +234,21 @@ describe("registerConsolidateCommand", () => {
       },
     } as any;
 
-    const projectStore = {
-      getMemoryEntries: () => ["project fact"],
-      getUserEntries: () => [],
-      loadFromDisk: async () => { projectReloaded = true; },
-    } as any;
-
-    registerConsolidateCommand(pi, mockStore, 60000, projectStore, "demo-project");
+    registerConsolidateCommand(pi, mockStore, 60000);
     await handler({}, {
       signal: undefined,
       ui: { notify: (message: string) => { notifications.push(message); } },
     });
 
-    assert.strictEqual(execCalls.length, 4, "should consolidate memory, user, failure, and project stores");
+    assert.strictEqual(execCalls.length, 3, "should consolidate memory, user, and failure targets");
     const failurePrompt = childPrompt(execCalls[2]);
     assert.ok(failurePrompt.includes("Failure Memory"), "failure prompt should be labeled");
     assert.ok(failurePrompt.includes("failure lesson 1"), "failure prompt should include failure entries");
     assert.ok(failurePrompt.includes("Target: 'failure'"), "failure prompt should use target='failure'");
-    const projectPrompt = childPrompt(execCalls[3]);
-    assert.ok(projectPrompt.includes("Project Memory"), "project prompt should be labeled");
-    assert.ok(projectPrompt.includes("project fact"), "project prompt should include project entries");
-    assert.ok(projectPrompt.includes("Target: 'project'"), "project prompt should use target='project'");
-    assert.ok(projectReloaded, "project store should reload after consolidation");
     assert.ok(notifications.some((message) => message.includes("Starting memory consolidation")), "should show an initial progress notification");
     assert.ok(notifications.some((message) => message.includes("⏳ Consolidating memory")), "should show per-target progress");
     const finalNotification = notifications[notifications.length - 1] ?? "";
     assert.ok(finalNotification.includes("failure: ✅ consolidated"), "final notification should include failure result");
-    assert.ok(finalNotification.includes("project:demo-project: ✅ consolidated"), "final notification should include project result");
   });
 
   it("uses a longer timeout floor for the manual consolidate command", async () => {

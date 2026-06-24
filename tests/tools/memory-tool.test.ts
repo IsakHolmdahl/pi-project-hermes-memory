@@ -41,7 +41,7 @@ describe("registerMemoryTool", () => {
       remove: () => ({ success: true, target: "memory", entries: [], usage: "0% — 0/100 chars", entry_count: 0 }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
 
     assert.strictEqual(registeredTools.length, 1, "should register exactly one tool");
     const tool = registeredTools[0];
@@ -73,7 +73,7 @@ describe("registerMemoryTool", () => {
       }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null, dbManager);
+    registerMemoryTool(mockPi, mockStore, dbManager);
     const result = await capturedResult.execute("tc-1", { action: "add", target: "memory", content: "Entry one" }, undefined as any, undefined as any, undefined as any);
 
     assert.strictEqual(result.content[0].type, "text", "content should be text type");
@@ -109,7 +109,7 @@ describe("registerMemoryTool", () => {
       }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     const result = await capturedResult.execute("tc-1", { action: "add", target: "memory", content: "New entry" }, undefined as any, undefined as any, undefined as any);
 
     const text = result.content[0].text;
@@ -142,7 +142,7 @@ describe("registerMemoryTool", () => {
       }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null, dbManager);
+    registerMemoryTool(mockPi, mockStore, dbManager);
     await capturedResult.execute("tc-1", { action: "add", target: "memory", content: "Entry one" }, undefined as any, undefined as any, undefined as any);
 
     const results = getMemories(dbManager, { target: 'memory', project: null });
@@ -182,89 +182,12 @@ describe("registerMemoryTool", () => {
       }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null, dbManager);
+    registerMemoryTool(mockPi, mockStore, dbManager);
     const result = await capturedResult.execute("tc-1", { action: "add", target: "memory", content: "New entry" }, undefined as any, undefined as any, undefined as any);
 
     assert.match(result.content[0].text, /Rotated active memory entries:/);
     const rows = getMemories(dbManager, { target: "memory", project: null });
     assert.deepStrictEqual(rows.map((row) => row.content).sort(), ["New entry", "Older entry with extra detail"].sort());
-  });
-
-  it("uses project scope when removing FIFO-evicted SQLite entries", async () => {
-    let capturedResult: any;
-    const mockPi = {
-      registerTool: (def: any) => {
-        capturedResult = def;
-      },
-    } as unknown as ExtensionAPI;
-
-    syncMemoryEntry(dbManager, {
-      content: "Shared wording",
-      target: "memory",
-      project: null,
-    });
-    syncMemoryEntry(dbManager, {
-      content: "Shared wording",
-      target: "memory",
-      project: "project-a",
-    });
-
-    const mockProjectStore = {
-      add: () => ({
-        success: true,
-        target: "memory",
-        entries: ["Project replacement"],
-        usage: "90% — 4500/5000 chars",
-        entry_count: 1,
-        message: "Memory updated. Rotated 1 older entry to stay within the limit.",
-        evicted_entries: ["Shared wording"],
-        evicted_count: 1,
-      }),
-    } as unknown as MemoryStore;
-
-    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, "project-a");
-    await capturedResult.execute("tc-1", { action: "add", target: "project", content: "Project replacement" }, undefined as any, undefined as any, undefined as any);
-
-    const globalRows = getMemories(dbManager, { target: "memory", project: null });
-    const projectRows = getMemories(dbManager, { target: "memory", project: "project-a" });
-    assert.deepStrictEqual(globalRows.map((row) => row.content), ["Shared wording"]);
-    assert.deepStrictEqual(projectRows.map((row) => row.content), ["Project replacement"]);
-  });
-
-  it("maps project target to SQLite project scope", async () => {
-    let capturedResult: any;
-    const mockPi = {
-      registerTool: (def: any) => {
-        capturedResult = def;
-      },
-    } as unknown as ExtensionAPI;
-
-    const addTargets: string[] = [];
-    const mockProjectStore = {
-      add: (target: string) => {
-        addTargets.push(target);
-        return {
-          success: true,
-          target,
-          entries: ["Project entry"],
-          usage: "2% — 20/5000 chars",
-          entry_count: 1,
-          message: "Entry added.",
-        };
-      },
-    } as unknown as MemoryStore;
-
-    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, 'project-a');
-    const result = await capturedResult.execute("tc-1", { action: "add", target: "project", content: "Project entry" }, undefined as any, undefined as any, undefined as any);
-
-    const parsed = JSON.parse(result.content[0].text);
-    assert.strictEqual(parsed.target, 'project');
-    assert.strictEqual(result.details.target, 'project');
-    assert.deepStrictEqual(addTargets, ['memory']);
-
-    const results = getMemories(dbManager, { project: 'project-a', target: 'memory' });
-    assert.strictEqual(results.length, 1);
-    assert.strictEqual(results[0].content, 'Project entry');
   });
 
   it("returns a warning instead of failing when SQLite sync errors", async () => {
@@ -292,7 +215,7 @@ describe("registerMemoryTool", () => {
       },
     } as unknown as DatabaseManager;
 
-    registerMemoryTool(mockPi, mockStore, null, failingDbManager);
+    registerMemoryTool(mockPi, mockStore, failingDbManager);
     const result = await capturedResult.execute("tc-1", { action: "add", target: "memory", content: "Entry one" }, undefined as any, undefined as any, undefined as any);
 
     const parsed = JSON.parse(result.content[0].text);
@@ -316,7 +239,7 @@ describe("registerMemoryTool", () => {
       }),
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null, dbManager);
+    registerMemoryTool(mockPi, mockStore, dbManager);
     const result = await capturedResult.execute(
       "tc-1",
       { action: "add", target: "memory", content: "overflow entry" },
@@ -343,7 +266,7 @@ describe("registerMemoryTool", () => {
 
     const mockStore = {} as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     const result = await capturedResult.execute("tc-1", { action: "add", target: "memory" }, undefined as any, undefined as any, undefined as any);
 
     const parsed = JSON.parse(result.content[0].text);
@@ -362,7 +285,7 @@ describe("registerMemoryTool", () => {
 
     const mockStore = {} as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     const result = await capturedResult.execute("tc-1", { action: "replace", target: "memory", content: "new" }, undefined as any, undefined as any, undefined as any);
 
     const parsed = JSON.parse(result.content[0].text);
@@ -381,7 +304,7 @@ describe("registerMemoryTool", () => {
 
     const mockStore = {} as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     const result = await capturedResult.execute("tc-1", { action: "remove", target: "memory" }, undefined as any, undefined as any, undefined as any);
 
     const parsed = JSON.parse(result.content[0].text);
@@ -406,7 +329,7 @@ describe("registerMemoryTool", () => {
       },
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     await capturedResult.execute("tc-1", { action: "replace", target: "memory", content: "new", old_text: "old" }, undefined as any, undefined as any, undefined as any);
 
     assert.deepStrictEqual(replaceArgs, ["memory", "old", "new"], "should pass target, old_text, content to store.replace");
@@ -429,7 +352,7 @@ describe("registerMemoryTool", () => {
       },
     } as unknown as MemoryStore;
 
-    registerMemoryTool(mockPi, mockStore, null);
+    registerMemoryTool(mockPi, mockStore);
     await capturedResult.execute("tc-1", { action: "remove", target: "memory", old_text: "old entry" }, undefined as any, undefined as any, undefined as any);
 
     assert.deepStrictEqual(removeArgs, ["memory", "old entry"], "should pass target, old_text to store.remove");

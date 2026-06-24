@@ -8,16 +8,10 @@ describe("buildPromptContext", () => {
     formatForSystemPrompt: () => "<memory-context>MEMORY</memory-context>",
   } as any;
 
-  const projectStore = {
-    formatProjectBlock: (projectName: string) => `<memory-context>PROJECT ${projectName}</memory-context>`,
-  } as any;
-
   it("returns policy only in policy-only mode", async () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only" },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, MEMORY_POLICY_PROMPT);
@@ -33,7 +27,6 @@ describe("buildPromptContext", () => {
     assert.doesNotMatch(result, /inspect, and update procedural skills/);
     assert.doesNotMatch(result, /memory_search: search relevant user, project, session, failure, and skill memories/);
     assert.doesNotMatch(result, /MEMORY<\/memory-context>/);
-    assert.doesNotMatch(result, /PROJECT demo/);
     assert.doesNotMatch(result, /SKILLS/);
   });
 
@@ -41,8 +34,6 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only", memoryPolicyStyle: "full" },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, MEMORY_POLICY_PROMPT);
@@ -52,8 +43,6 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only", memoryPolicyStyle: "compact" },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, MEMORY_POLICY_PROMPT_COMPACT);
@@ -61,7 +50,6 @@ describe("buildPromptContext", () => {
     assert.match(result, /scope is required: global for transferable workflows, project for repo-specific ones/);
     assert.match(result, /Do not use memory_search for generic questions/);
     assert.doesNotMatch(result, /MEMORY<\/memory-context>/);
-    assert.doesNotMatch(result, /PROJECT demo/);
     assert.doesNotMatch(result, /SKILLS/);
   });
 
@@ -70,8 +58,6 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only", memoryPolicyStyle: "custom", memoryPolicyCustomText: customText },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, customText);
@@ -81,8 +67,6 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only", memoryPolicyStyle: "custom", memoryPolicyCustomText: "  \n\t  " },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, MEMORY_POLICY_PROMPT_COMPACT);
@@ -92,8 +76,6 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "policy-only", memoryPolicyStyle: "none" },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.strictEqual(result, "");
@@ -103,12 +85,9 @@ describe("buildPromptContext", () => {
     const result = await buildPromptContext(
       { memoryMode: "legacy-inject", memoryPolicyStyle: "compact" },
       store,
-      projectStore,
-      "demo",
     );
 
     assert.match(result, /MEMORY/);
-    assert.match(result, /PROJECT demo/);
     assert.doesNotMatch(result, /<memory-policy>/);
   });
 });

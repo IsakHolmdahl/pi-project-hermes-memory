@@ -59,39 +59,17 @@ function formatMemoryToolText(result: MemoryResult): string {
 	return JSON.stringify(result);
 }
 
-function sqliteProjectFor(
-	rawTarget: "memory" | "user" | "project" | "failure",
-	projectName?: string | null,
-): string | null | undefined {
-	if (rawTarget === "project") return projectName?.trim() || null;
-	if (rawTarget === "memory") return null;
-	if (rawTarget === "user") return null;
-	if (rawTarget === "failure") return null;
-	return undefined;
-}
-
-function sqliteTargetFor(
-	rawTarget: "memory" | "user" | "project" | "failure",
-): "memory" | "user" | "failure" {
-	if (rawTarget === "project") return "memory";
-	return rawTarget;
-}
-
 async function syncAddToSqlite(
-	rawTarget: "memory" | "user" | "project" | "failure",
+	target: "memory" | "user" | "failure",
 	content: string,
 	category: MemoryCategory | undefined,
 	failureReason: string | undefined,
 	dbManager: DatabaseManager | null,
-	projectName?: string | null,
 ): Promise<string | null> {
 	if (!dbManager) return null;
 
 	try {
-		const sqliteTarget = sqliteTargetFor(rawTarget);
-		const sqliteProject = sqliteProjectFor(rawTarget, projectName);
-
-		if (rawTarget === "failure") {
+		if (target === "failure") {
 			const failureCategory = category ?? "failure";
 			syncMemoryEntry(dbManager, {
 				content: formatFailureMemoryContent(content, {
@@ -99,7 +77,7 @@ async function syncAddToSqlite(
 					failureReason,
 				}),
 				target: "failure",
-				project: sqliteProject ?? null,
+				project: null,
 				category: failureCategory,
 				failureReason,
 			});
@@ -108,8 +86,8 @@ async function syncAddToSqlite(
 
 		syncMemoryEntry(dbManager, {
 			content,
-			target: sqliteTarget,
-			project: sqliteProject ?? null,
+			target,
+			project: null,
 		});
 		return null;
 	} catch (err) {
@@ -118,21 +96,18 @@ async function syncAddToSqlite(
 }
 
 async function syncReplaceToSqlite(
-	rawTarget: "memory" | "user" | "project" | "failure",
+	target: "memory" | "user" | "failure",
 	oldText: string,
 	newContent: string,
 	dbManager: DatabaseManager | null,
-	projectName?: string | null,
 ): Promise<string | null> {
 	if (!dbManager) return null;
 
 	try {
-		const sqliteTarget = sqliteTargetFor(rawTarget);
-		const sqliteProject = sqliteProjectFor(rawTarget, projectName);
 		const syncResult = replaceSyncedMemories(dbManager, oldText, {
 			content: newContent,
-			target: sqliteTarget,
-			project: sqliteProject,
+			target,
+			project: null,
 		});
 
 		if (syncResult.matched === 0) {
@@ -146,19 +121,16 @@ async function syncReplaceToSqlite(
 }
 
 async function syncRemoveFromSqlite(
-	rawTarget: "memory" | "user" | "project" | "failure",
+	target: "memory" | "user" | "failure",
 	oldText: string,
 	dbManager: DatabaseManager | null,
-	projectName?: string | null,
 ): Promise<string | null> {
 	if (!dbManager) return null;
 
 	try {
-		const sqliteTarget = sqliteTargetFor(rawTarget);
-		const sqliteProject = sqliteProjectFor(rawTarget, projectName);
 		const syncResult = removeSyncedMemories(dbManager, oldText, {
-			target: sqliteTarget,
-			project: sqliteProject,
+			target,
+			project: null,
 		});
 
 		if (syncResult.matched === 0) {
@@ -172,22 +144,18 @@ async function syncRemoveFromSqlite(
 }
 
 async function syncEvictionsFromSqlite(
-	rawTarget: "memory" | "user" | "project" | "failure",
+	target: "memory" | "user" | "failure",
 	evictedEntries: string[] | undefined,
 	dbManager: DatabaseManager | null,
-	projectName?: string | null,
 ): Promise<void> {
 	if (!dbManager) return;
 	if (!evictedEntries || evictedEntries.length === 0) return;
 
-	const sqliteTarget = sqliteTargetFor(rawTarget);
-	const sqliteProject = sqliteProjectFor(rawTarget, projectName);
-
 	for (const entry of evictedEntries) {
 		try {
 			removeExactSyncedMemories(dbManager, entry, {
-				target: sqliteTarget,
-				project: sqliteProject,
+				target,
+				project: null,
 			});
 		} catch {
 			// FIFO already updated the Markdown source of truth. SQLite is only a
@@ -199,9 +167,7 @@ async function syncEvictionsFromSqlite(
 export function registerMemoryTool(
 	pi: ExtensionAPI,
 	store: MemoryStore,
-	projectStore: MemoryStore | null,
 	dbManager: DatabaseManager | null = null,
-	projectName?: string | null,
 ): void {
 	pi.registerTool({
 		name: "memory",
@@ -217,7 +183,7 @@ export function registerMemoryTool(
 		],
 		parameters: Type.Object({
 			action: StringEnum(["add", "replace", "remove"] as const),
-			target: StringEnum(["memory", "user", "project", "failure"] as const),
+			target: StringEnum(["memory", "user", "failure"] as const),
 			content: Type.Optional(
 				Type.String({ description: "Entry content for add/replace" }),
 			),
@@ -248,37 +214,12 @@ export function registerMemoryTool(
 		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const {
 				action,
-				target: rawTarget,
+				target,
 				content,
 				old_text,
 				category,
 				failure_reason,
 			} = params;
-
-			// Route 'project' to projectStore using the normal MEMORY.md target.
-			const target =
-				rawTarget === "project"
-					? "memory"
-					: (rawTarget as "memory" | "user" | "failure");
-			const activeStore = rawTarget === "project" ? projectStore : store;
-
-			if (rawTarget === "project" && !projectStore) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: JSON.stringify({
-								success: false,
-								error: "Project memory is not available (no project detected).",
-							}),
-						},
-					],
-					details: {},
-				};
-			}
-
-			// After the guard above, activeStore is guaranteed non-null when rawTarget === 'project'
-			const store_ = activeStore!;
 
 			let result: MemoryResult;
 			let syncWarning: string | null = null;
@@ -299,39 +240,36 @@ export function registerMemoryTool(
 						};
 					}
 					// Handle failure target with category
-					if (rawTarget === "failure") {
+					if (target === "failure") {
 						const memoryCategory = (category || "failure") as MemoryCategory;
-						result = await store_.addFailure(content, {
+						result = await store.addFailure(content, {
 							category: memoryCategory,
 							failureReason: failure_reason,
 						});
 						if (result.success) {
 							syncWarning = await syncAddToSqlite(
-								rawTarget,
+								target,
 								content,
 								memoryCategory,
 								failure_reason,
 								dbManager,
-								projectName,
 							);
 						}
 					} else {
-						result = await store_.add(target, content);
+						result = await store.add(target, content);
 						if (result.success) {
 							await syncEvictionsFromSqlite(
-								rawTarget,
+								target,
 								result.evicted_entries,
 								dbManager,
-								projectName,
 							);
 							syncWarning = await syncAddToSqlite(
-								rawTarget,
-								content,
-								undefined,
-								undefined,
-								dbManager,
-								projectName,
-							);
+									target,
+									content,
+									undefined,
+									undefined,
+									dbManager,
+								);
 						}
 					}
 					break;
@@ -365,14 +303,13 @@ export function registerMemoryTool(
 							details: {},
 						};
 					}
-					result = await store_.replace(target, old_text, content);
+					result = await store.replace(target, old_text, content);
 					if (result.success) {
 						syncWarning = await syncReplaceToSqlite(
-							rawTarget,
+							target,
 							old_text,
 							content,
 							dbManager,
-							projectName,
 						);
 					}
 					break;
@@ -392,13 +329,12 @@ export function registerMemoryTool(
 							details: {},
 						};
 					}
-					result = await store_.remove(target, old_text);
+					result = await store.remove(target, old_text);
 					if (result.success) {
 						syncWarning = await syncRemoveFromSqlite(
-							rawTarget,
+							target,
 							old_text,
 							dbManager,
-							projectName,
 						);
 					}
 					break;
@@ -412,14 +348,6 @@ export function registerMemoryTool(
 
 			if (syncWarning && result.success) {
 				result = appendSyncWarning(result, syncWarning);
-			}
-
-			// Tag project results so the caller knows the scope
-			if (rawTarget === "project" && result.success) {
-				result = {
-					...result,
-					target: "project",
-				};
 			}
 
 			return {

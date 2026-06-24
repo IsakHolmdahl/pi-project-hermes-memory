@@ -319,7 +319,7 @@ describe("setupCorrectionDetector handler", () => {
 
   it("triggers pi.exec when correction detected", async () => {
     const pi = createMockPi();
-    setupCorrectionDetector(pi, mockStore, null, config);
+    setupCorrectionDetector(pi, mockStore, config);
 
     const branch = [
       { type: "message", message: { role: "user", content: [{ type: "text", text: "don't do that" }] } },
@@ -335,7 +335,7 @@ describe("setupCorrectionDetector handler", () => {
 
   it("passes child LLM override args and defaults thinking to off when only a model override is set", async () => {
     const pi = createMockPi();
-    setupCorrectionDetector(pi, mockStore, null, {
+    setupCorrectionDetector(pi, mockStore, {
       ...config,
       llmModelOverride: "openrouter/deepseek/deepseek-v4-flash",
     });
@@ -358,7 +358,7 @@ describe("setupCorrectionDetector handler", () => {
 
   it("does NOT trigger on normal messages", async () => {
     const pi = createMockPi();
-    setupCorrectionDetector(pi, mockStore, null, config);
+    setupCorrectionDetector(pi, mockStore, config);
 
     fireMessageEnd("user", "looks good");
     fireTurnEnd([]);
@@ -369,7 +369,7 @@ describe("setupCorrectionDetector handler", () => {
 
   it("rate limits: does not trigger on consecutive corrections within 3 turns", async () => {
     const pi = createMockPi();
-    setupCorrectionDetector(pi, mockStore, null, config);
+    setupCorrectionDetector(pi, mockStore, config);
 
     // First correction
     fireMessageEnd("user", "don't do that");
@@ -394,7 +394,7 @@ describe("setupCorrectionDetector handler", () => {
       addFailure: async () => ({ success: true, target: 'failure', entry_count: 1, message: 'Failure memory saved: correction' }),
     } as any;
 
-    setupCorrectionDetector(pi, correctionStore, null, config, dbManager);
+    setupCorrectionDetector(pi, correctionStore, config, dbManager);
 
     const branch = [
       { type: "message", message: { role: "user", content: [{ type: "text", text: "no, use pnpm instead" }] } },
@@ -409,34 +409,6 @@ describe("setupCorrectionDetector handler", () => {
     assert.strictEqual(failures.length, 1);
     assert.match(failures[0].content, /use pnpm instead/);
     assert.strictEqual(failures[0].category, 'correction');
-  });
-
-  it("syncs project correction saves into SQLite with project scope", async () => {
-    const pi = createMockPi();
-    const correctionStore = {
-      ...mockStore,
-      addFailure: async () => ({ success: true, target: 'failure', entry_count: 1, message: 'Failure memory saved: correction' }),
-    } as any;
-    const projectStore = {
-      getMemoryEntries: () => [],
-    } as any;
-
-    setupCorrectionDetector(pi, correctionStore, projectStore, config, dbManager, 'project-a');
-
-    const branch = [
-      { type: "message", message: { role: "user", content: [{ type: "text", text: "no, use pnpm in this repo" }] } },
-      { type: "message", message: { role: "assistant", content: [{ type: "text", text: "ok" }] } },
-    ];
-
-    fireMessageEnd("user", "no, use pnpm in this repo");
-    fireTurnEnd(branch);
-    await settle();
-
-    const projectFailures = getMemories(dbManager, { target: 'failure', project: 'project-a' });
-    assert.strictEqual(projectFailures.length, 1);
-    assert.match(projectFailures[0].content, /use pnpm in this repo/);
-    assert.match(projectFailures[0].content, /Project: project-a/);
-    assert.strictEqual(projectFailures[0].category, 'correction');
   });
 
   it("does not break correction handling when SQLite sync fails", async () => {
@@ -456,7 +428,7 @@ describe("setupCorrectionDetector handler", () => {
       },
     } as unknown as DatabaseManager;
 
-    setupCorrectionDetector(pi, correctionStore, null, config, failingDbManager);
+    setupCorrectionDetector(pi, correctionStore, config, failingDbManager);
 
     const branch = [
       { type: "message", message: { role: "user", content: [{ type: "text", text: "no, use yarn instead" }] } },
@@ -474,7 +446,7 @@ describe("setupCorrectionDetector handler", () => {
   it("does not register handlers when correctionDetection is false", () => {
     const pi = createMockPi();
     const disabledConfig = { ...config, correctionDetection: false };
-    setupCorrectionDetector(pi, mockStore, null, disabledConfig);
+    setupCorrectionDetector(pi, mockStore, disabledConfig);
 
     assert.strictEqual(Object.keys(handlers).length, 0, "no handlers should be registered when disabled");
   });

@@ -158,7 +158,7 @@ export function registerLearnMemoryCommand(pi: ExtensionAPI): void {
 					'  Legacy mode: set memoryMode="legacy-inject" to restore full',
 				);
 				lines.push(
-					"  MEMORY.md, USER.md, project memory, and failure prompt blocks.",
+					"  MEMORY.md, USER.md, and failure prompt blocks.",
 				);
 			}
 

@@ -11,8 +11,6 @@ import type { MemoryConfig } from "../types.js";
 export function registerPreviewContextCommand(
   pi: ExtensionAPI,
   store: MemoryStore,
-  projectStore: MemoryStore | null,
-  projectName: string,
   config: Pick<MemoryConfig, "memoryMode" | "memoryPolicyStyle" | "memoryPolicyCustomText"> = { memoryMode: "policy-only" },
 ): void {
   pi.registerCommand("memory-preview-context", {
@@ -45,7 +43,6 @@ export function registerPreviewContextCommand(
       }
 
       const memoryBlock = store.formatForSystemPrompt();
-      const projectBlock = projectStore ? projectStore.formatProjectBlock(projectName) : "";
 
       const lines: string[] = [];
       lines.push("");
@@ -63,13 +60,6 @@ export function registerPreviewContextCommand(
         blockCount++;
         lines.push("  ── MEMORY + USER + RECENT FAILURES ─────────────────────────");
         lines.push(memoryBlock);
-        lines.push("");
-      }
-
-      if (projectBlock) {
-        blockCount++;
-        lines.push(`  ── PROJECT MEMORY (${projectName}) ─────────────────────────`);
-        lines.push(projectBlock);
         lines.push("");
       }
 

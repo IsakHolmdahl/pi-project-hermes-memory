@@ -17,7 +17,6 @@ import { execChildPrompt } from "./pi-child-process.js";
 export function setupBackgroundReview(
   pi: ExtensionAPI,
   store: MemoryStore,
-  projectStore: MemoryStore | null,
   config: MemoryConfig,
 ): void {
   let turnsSinceReview = 0;
@@ -84,7 +83,6 @@ export function setupBackgroundReview(
 
     const currentMemory = store.getMemoryEntries().join("\n§\n");
     const currentUser = store.getUserEntries().join("\n§\n");
-    const currentProject = projectStore ? projectStore.getMemoryEntries().join("\n§\n") : null;
 
     const reviewPrompt = [
       COMBINED_REVIEW_PROMPT,
@@ -94,21 +92,10 @@ export function setupBackgroundReview(
       "",
       "--- Current User Profile ---",
       currentUser || "(empty)",
-    ];
-
-    if (currentProject !== null) {
-      reviewPrompt.push(
-        "",
-        "--- Current Project Memory ---",
-        currentProject || "(empty)",
-      );
-    }
-
-    reviewPrompt.push(
       "",
       "--- Conversation to Review ---",
       parts.join("\n\n"),
-    );
+    ];
 
     // Fire-and-forget: do NOT await. The review runs in a subprocess;
     // blocking turn_end would freeze the interactive chat.

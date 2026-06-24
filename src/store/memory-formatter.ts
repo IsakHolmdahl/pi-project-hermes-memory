@@ -42,31 +42,6 @@ export function renderMemoryBlock(
 	return `${separator}\n${header}\n${separator}\n${content}`;
 }
 
-export function renderProjectMemoryBlock(
-	projectName: string,
-	entries: string[],
-	limit: number,
-): string {
-	if (!entries.length) return "";
-	const content = entries.join(ENTRY_DELIMITER);
-	const current = content.length;
-	const pct =
-		limit > 0 ? Math.min(100, Math.floor((current / limit) * 100)) : 0;
-
-	const header = `PROJECT MEMORY: ${projectName} [${pct}% — ${current}/${limit} chars]`;
-	const separator = "═".repeat(46);
-	return `${separator}\n${header}\n${separator}\n${content}`;
-}
-
-export function renderFencedProjectMemoryBlock(
-	projectName: string,
-	entries: string[],
-	limit: number,
-): string {
-	const block = renderProjectMemoryBlock(projectName, entries, limit);
-	return block ? fenceMemoryBlock(block) : "";
-}
-
 export function renderFailureBlock(entries: string[]): string {
 	if (!entries.length) return "";
 	const header = "RECENT FAILURES & LESSONS (learn from these):";

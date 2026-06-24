@@ -243,7 +243,6 @@ export function formatFailureMemoryContent(
     failureReason?: string | null;
     toolState?: string | null;
     correctedTo?: string | null;
-    project?: string | null;
   }
 ): string {
   const categoryTag = `[${options.category}]`;
@@ -251,7 +250,6 @@ export function formatFailureMemoryContent(
   if (options.failureReason) parts.push(`Failed: ${options.failureReason}`);
   if (options.toolState) parts.push(`Tool state: ${options.toolState}`);
   if (options.correctedTo) parts.push(`Corrected to: ${options.correctedTo}`);
-  if (options.project) parts.push(`Project: ${options.project}`);
   return parts.join(' — ');
 }
 
@@ -263,16 +261,14 @@ export function formatFailureMemoryContent(
 export function parseMarkdownMemoryEntry(
   rawEntry: string,
   target: 'memory' | 'user' | 'failure',
-  project: string | null = null,
 ): ParsedMarkdownMemoryEntry {
   const { text, created, lastReferenced } = parseMetadataComment(rawEntry);
-  const parsedProject = normalizeNullable(project);
 
   if (target !== 'failure') {
     return {
       content: text,
       target,
-      project: parsedProject,
+      project: null,
       created,
       lastReferenced,
     };
@@ -306,7 +302,7 @@ export function parseMarkdownMemoryEntry(
   return {
     content: text,
     target: 'failure',
-    project: parsedProject,
+    project: null,
     category,
     failureReason,
     toolState,

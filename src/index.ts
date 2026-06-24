@@ -87,8 +87,6 @@ export default function (pi: ExtensionAPI) {
 	const agentRoot = AGENT_ROOT;
 	const memoryDir = config.memoryDir?.trim() || resolveLocalHermesDir();
 	const store = new MemoryStore({ ...config, memoryDir: config.memoryDir });
-	const projectStore = null as MemoryStore | null;
-	const projectName = "";
 	const skillStore = new SkillStore();
 	const dbManager = new DatabaseManager(memoryDir);
 	const sessionsDir = path.join(agentRoot, "sessions");
@@ -132,8 +130,6 @@ export default function (pi: ExtensionAPI) {
 		const promptContext = await buildPromptContext(
 			config,
 			store,
-			projectStore,
-			projectName,
 		);
 
 		if (promptContext) {
@@ -143,17 +139,17 @@ export default function (pi: ExtensionAPI) {
 		}
 	});
 
-	// ── 3. Register the memory tool (with project store + SQLite sync) ──
-	registerMemoryTool(pi, store, projectStore, dbManager, projectName);
+	// ── 3. Register the memory tool (with SQLite sync) ──
+	registerMemoryTool(pi, store, dbManager);
 
 	// ── 4. Register the skill tool ──
 	registerSkillTool(pi, skillStore);
 
 	// ── 5. Setup background learning loop (with tool-call-aware nudge) ──
-	setupBackgroundReview(pi, store, projectStore, config);
+	setupBackgroundReview(pi, store, config);
 
 	// ── 6. Setup session-end flush ──
-	setupSessionFlush(pi, store, projectStore, config);
+	setupSessionFlush(pi, store, config);
 
 	// ── 7. Setup auto-consolidation (inject consolidator into stores) ──
 	store.setConsolidator(async (target, signal) => {
@@ -163,7 +159,6 @@ export default function (pi: ExtensionAPI) {
 			target,
 			signal,
 			config.consolidationTimeoutMs,
-			target,
 			config,
 		);
 	});
@@ -171,8 +166,6 @@ export default function (pi: ExtensionAPI) {
 		pi,
 		store,
 		config.consolidationTimeoutMs,
-		projectStore,
-		projectName,
 		config,
 	);
 
@@ -180,18 +173,16 @@ export default function (pi: ExtensionAPI) {
 	setupCorrectionDetector(
 		pi,
 		store,
-		projectStore,
 		config,
 		dbManager,
-		projectName,
 	);
 
 	// ── 9. Register commands ──
-	registerInsightsCommand(pi, store, projectStore, projectName);
+	registerInsightsCommand(pi, store);
 	registerSkillsCommand(pi, skillStore);
 	registerInterviewCommand(pi, store);
 	registerLearnMemoryCommand(pi);
-	registerPreviewContextCommand(pi, store, projectStore, projectName, config);
+	registerPreviewContextCommand(pi, store, config);
 
 	// ── 10. Live session indexing ──
 	pi.on("message_end", async (_event, ctx) => {

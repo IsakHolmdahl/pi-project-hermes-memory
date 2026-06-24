@@ -14,7 +14,6 @@ import { execChildPrompt } from "./pi-child-process.js";
 export function setupSessionFlush(
   pi: ExtensionAPI,
   store: MemoryStore,
-  projectStore: MemoryStore | null,
   config: MemoryConfig,
 ): void {
   let userTurnCount = 0;

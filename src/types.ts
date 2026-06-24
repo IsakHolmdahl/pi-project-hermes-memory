@@ -99,7 +99,7 @@ export interface MemoryResult {
 	message?: string;
 	warning?: string;
 	warnings?: string[];
-	target?: "memory" | "user" | "failure" | "project";
+	target?: "memory" | "user" | "failure";
 	entries?: string[];
 	usage?: string;
 	entry_count?: number;

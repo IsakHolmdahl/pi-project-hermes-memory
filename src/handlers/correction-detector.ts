@@ -125,10 +125,8 @@ export function isCorrection(text: string, config?: CorrectionPatternConfig): bo
 export function setupCorrectionDetector(
   pi: ExtensionAPI,
   store: MemoryStore,
-  projectStore: MemoryStore | null,
   config: MemoryConfig,
   dbManager: DatabaseManager | null = null,
-  projectName?: string | null,
 ): void {
   if (!config.correctionDetection) return;
 
@@ -180,7 +178,6 @@ export function setupCorrectionDetector(
 
       const currentMemory = store.getMemoryEntries().join(ENTRY_DELIMITER);
       const currentUser = store.getUserEntries().join(ENTRY_DELIMITER);
-      const currentProject = projectStore ? projectStore.getMemoryEntries().join(ENTRY_DELIMITER) : null;
 
       const prompt = [
         CORRECTION_SAVE_PROMPT,
@@ -190,21 +187,10 @@ export function setupCorrectionDetector(
         "",
         "--- Current User Profile ---",
         currentUser || "(empty)",
-      ];
-
-      if (currentProject !== null) {
-        prompt.push(
-          "",
-          "--- Current Project Memory ---",
-          currentProject || "(empty)",
-        );
-      }
-
-      prompt.push(
         "",
         "--- Recent Conversation ---",
         recentParts.join("\n\n"),
-      );
+      ];
 
       const result = await execChildPrompt(pi, prompt.join("\n"), config, {
         signal: ctx.signal,
@@ -225,11 +211,9 @@ export function setupCorrectionDetector(
         if (correctionText) {
           const directive = extractCorrectionDirective(correctionText);
           const failureReason = "User corrected the agent";
-          const scopedProjectName = projectStore ? projectName?.trim() || null : null;
           const addResult = await store.addFailure(directive, {
             category: "correction",
             failureReason,
-            project: scopedProjectName ?? undefined,
           });
 
           if (addResult.success && dbManager) {
@@ -238,10 +222,9 @@ export function setupCorrectionDetector(
                 content: formatFailureMemoryContent(directive, {
                   category: "correction",
                   failureReason,
-                  project: scopedProjectName,
                 }),
                 target: "failure",
-                project: scopedProjectName,
+                project: null,
                 category: "correction",
                 failureReason,
               });

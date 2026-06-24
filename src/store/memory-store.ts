@@ -12,7 +12,6 @@ import { encodeEntry, stripMetadata } from "./memory-entries.js";
 import { buildFailureMemoryText } from "./memory-failures.js";
 import {
 	buildSnapshot,
-	renderFencedProjectMemoryBlock,
 	formatSystemPromptContext,
 } from "./memory-formatter.js";
 import { readMemoryFile, saveMemoryFile } from "./memory-io.js";
@@ -210,7 +209,6 @@ export class MemoryStore {
 			failureReason?: string;
 			toolState?: string;
 			correctedTo?: string;
-			project?: string;
 		},
 	): Promise<MemoryResult> {
 		const failureText = buildFailureMemoryText(content, options);
@@ -276,14 +274,6 @@ export class MemoryStore {
 			this.snapshot,
 			this.failureEntries,
 			this.config,
-		);
-	}
-
-	formatProjectBlock(projectName: string): string {
-		return renderFencedProjectMemoryBlock(
-			projectName,
-			this.memoryEntries,
-			this.config.memoryCharLimit,
 		);
 	}
 

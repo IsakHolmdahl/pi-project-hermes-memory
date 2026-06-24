@@ -6,9 +6,6 @@ import { MEMORY_POLICY_PROMPT, MEMORY_POLICY_PROMPT_COMPACT } from "../../src/co
 describe("registerPreviewContextCommand", () => {
   function setup(opts: {
     memoryBlock?: string;
-    projectBlock?: string;
-    projectName?: string;
-    withProjectStore?: boolean;
     memoryMode?: "policy-only" | "legacy-inject";
     memoryPolicyStyle?: "full" | "compact" | "custom" | "none";
     memoryPolicyCustomText?: string;
@@ -26,15 +23,9 @@ describe("registerPreviewContextCommand", () => {
       formatForSystemPrompt: () => opts.memoryBlock ?? "",
     } as any;
 
-    const projectStore = opts.withProjectStore
-      ? ({ formatProjectBlock: () => opts.projectBlock ?? "" } as any)
-      : null;
-
     registerPreviewContextCommand(
       mockPi,
       store,
-      projectStore,
-      opts.projectName ?? "demo-project",
       {
         memoryMode: opts.memoryMode ?? "policy-only",
         memoryPolicyStyle: opts.memoryPolicyStyle,
@@ -63,8 +54,6 @@ describe("registerPreviewContextCommand", () => {
   it("shows policy-only context by default", async () => {
     const { handler, ctx, notifyCalls } = setup({
       memoryBlock: "<memory-context>MEM</memory-context>",
-      projectBlock: "<memory-context>PROJECT</memory-context>",
-      withProjectStore: true,
     });
 
     await handler({}, ctx);
@@ -118,12 +107,9 @@ describe("registerPreviewContextCommand", () => {
     assert.match(out, /Blocks shown: 0/);
   });
 
-  it("shows all available blocks in legacy mode", async () => {
+  it("shows memory block in legacy mode", async () => {
     const { handler, ctx, notifyCalls } = setup({
       memoryBlock: "<memory-context>MEM</memory-context>",
-      projectBlock: "<memory-context>PROJECT</memory-context>",
-      withProjectStore: true,
-      projectName: "pi-hermes-memory",
       memoryMode: "legacy-inject",
     });
 
@@ -132,15 +118,12 @@ describe("registerPreviewContextCommand", () => {
     const out = notifyCalls[0].message;
     assert.match(out, /Injected Context Preview/);
     assert.match(out, /MEMORY \+ USER \+ RECENT FAILURES/);
-    assert.match(out, /PROJECT MEMORY \(pi-hermes-memory\)/);
-    assert.match(out, /Blocks shown: 2/);
+    assert.match(out, /Blocks shown: 1/);
   });
 
   it("shows empty-state guidance when no blocks exist", async () => {
     const { handler, ctx, notifyCalls } = setup({
       memoryBlock: "",
-      projectBlock: "",
-      withProjectStore: false,
       memoryMode: "legacy-inject",
     });
 

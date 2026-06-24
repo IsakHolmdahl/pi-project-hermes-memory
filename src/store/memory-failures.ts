@@ -11,7 +11,6 @@ export function buildFailureMemoryText(
 		failureReason?: string;
 		toolState?: string;
 		correctedTo?: string;
-		project?: string;
 	},
 ): string {
 	const trimmedContent = content.trim();
@@ -20,7 +19,6 @@ export function buildFailureMemoryText(
 	if (options.failureReason) parts.push("Failed: " + options.failureReason);
 	if (options.toolState) parts.push("Tool state: " + options.toolState);
 	if (options.correctedTo) parts.push("Corrected to: " + options.correctedTo);
-	if (options.project) parts.push("Project: " + options.project);
 	return parts.join(" — ");
 }
 
